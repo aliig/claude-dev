@@ -1,4 +1,4 @@
-import { VSCodeButton, VSCodeLink, VSCodeTextArea, VSCodeTextField } from "@vscode/webview-ui-toolkit/react"
+import { VSCodeButton, VSCodeLink, VSCodeTextArea, VSCodeTextField, VSCodeCheckbox } from "@vscode/webview-ui-toolkit/react"
 import React, { useEffect, useState } from "react"
 import { ApiConfiguration } from "../../../src/shared/api"
 import { validateApiConfiguration, validateMaxRequestsPerTask } from "../utils/validate"
@@ -52,17 +52,13 @@ const SettingsView = ({
 		setMaxRequestsErrorMessage(undefined)
 	}, [maxRequestsPerTask])
 
-	// validate as soon as the component is mounted
-	/*
-	useEffect will use stale values of variables if they are not included in the dependency array. so trying to use useEffect with a dependency array of only one value for example will use any other variables' old values. In most cases you don't want this, and should opt to use react-use hooks.
-	
-	useEffect(() => {
-		// uses someVar and anotherVar
-	// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [someVar])
-
-	If we only want to run code once on mount we can use react-use's useEffectOnce or useMount
-	*/
+	const handleUsePromptCachingChange = (e: Event) => {
+		const target = e.target as HTMLInputElement
+		setApiConfiguration((prevConfig) => ({
+			...prevConfig,
+			usePromptCaching: target.checked,
+		}))
+	}
 
 	return (
 		<div
@@ -105,6 +101,22 @@ const SettingsView = ({
 							{apiErrorMessage}
 						</p>
 					)}
+				</div>
+
+				<div style={{ marginBottom: 15 }}>
+					<VSCodeCheckbox
+						checked={apiConfiguration?.usePromptCaching || false}
+						onChange={handleUsePromptCachingChange}>
+						Use Prompt Caching
+					</VSCodeCheckbox>
+					<p
+						style={{
+							fontSize: "12px",
+							marginTop: "5px",
+							color: "var(--vscode-descriptionForeground)",
+						}}>
+						Enable prompt caching to optimize API usage and reduce costs for repetitive tasks.
+					</p>
 				</div>
 
 				<div style={{ marginBottom: 15 }}>
