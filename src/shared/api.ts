@@ -7,6 +7,7 @@ export interface ApiHandlerOptions {
 	awsAccessKey?: string
 	awsSecretKey?: string
 	awsRegion?: string
+	usePromptCaching?: boolean;
 }
 
 export type ApiConfiguration = ApiHandlerOptions & {
@@ -20,6 +21,8 @@ export interface ModelInfo {
 	supportsImages: boolean
 	inputPrice: number
 	outputPrice: number
+	cacheWritePrice?: number
+	cacheReadPrice?: number
 }
 
 export type ApiModelId = AnthropicModelId | OpenRouterModelId | BedrockModelId
@@ -34,24 +37,32 @@ export const anthropicModels = {
 		supportsImages: true,
 		inputPrice: 3.0, // $3 per million input tokens
 		outputPrice: 15.0, // $15 per million output tokens
+		cacheWritePrice: 3.75,
+		cacheReadPrice: 0.3,
 	},
 	"claude-3-opus-20240229": {
 		maxTokens: 4096,
 		supportsImages: true,
 		inputPrice: 15.0,
 		outputPrice: 75.0,
+		// cacheWritePrice: 18.75,
+		// cacheReadPrice: 1.5,
 	},
 	"claude-3-sonnet-20240229": {
 		maxTokens: 4096,
 		supportsImages: true,
 		inputPrice: 3.0,
 		outputPrice: 15.0,
+		cacheWritePrice: 3.75,
+		cacheReadPrice: 0.3,
 	},
 	"claude-3-haiku-20240307": {
 		maxTokens: 4096,
 		supportsImages: true,
 		inputPrice: 0.25,
 		outputPrice: 1.25,
+		cacheWritePrice: 0.3,
+		cacheReadPrice: 0.03,
 	},
 } as const satisfies Record<string, ModelInfo> // as const assertion makes the object deeply readonly
 
@@ -65,24 +76,32 @@ export const bedrockModels = {
 		supportsImages: true,
 		inputPrice: 3.0,
 		outputPrice: 15.0,
+		cacheWritePrice: 3.75,
+		cacheReadPrice: 0.3,
 	},
 	"anthropic.claude-3-opus-20240229-v1:0": {
 		maxTokens: 4096,
 		supportsImages: true,
 		inputPrice: 15.0,
 		outputPrice: 75.0,
+		cacheWritePrice: 18.75,
+		cacheReadPrice: 1.5,
 	},
 	"anthropic.claude-3-sonnet-20240229-v1:0": {
 		maxTokens: 4096,
 		supportsImages: true,
 		inputPrice: 3.0,
 		outputPrice: 15.0,
+		cacheWritePrice: 3.75,
+		cacheReadPrice: 0.3,
 	},
 	"anthropic.claude-3-haiku-20240307-v1:0": {
 		maxTokens: 4096,
 		supportsImages: true,
 		inputPrice: 0.25,
 		outputPrice: 1.25,
+		cacheWritePrice: 0.3,
+		cacheReadPrice: 0.03,
 	},
 } as const satisfies Record<string, ModelInfo>
 

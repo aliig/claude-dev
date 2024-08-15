@@ -18,6 +18,8 @@ export const mockMessages: ClaudeMessage[] = [
 			},
 			tokensIn: 10,
 			tokensOut: 250,
+			cacheReadTokens: 25,
+			cacheWriteTokens: 50,
 			cost: 0.0002,
 		}),
 	},
@@ -35,30 +37,30 @@ export const mockMessages: ClaudeMessage[] = [
 			tool: "newFileCreated",
 			path: "/src/components/TodoList.tsx",
 			content: `import React, { useState } from 'react';
-  
+
   interface Todo {
     id: number;
     text: string;
     completed: boolean;
   }
-  
+
   const TodoList: React.FC = () => {
     const [todos, setTodos] = useState<Todo[]>([]);
     const [inputValue, setInputValue] = useState('');
-  
+
     const addTodo = () => {
       if (inputValue.trim() !== '') {
         setTodos([...todos, { id: Date.now(), text: inputValue, completed: false }]);
         setInputValue('');
       }
     };
-  
+
     const toggleTodo = (id: number) => {
       setTodos(todos.map(todo =>
         todo.id === id ? { ...todo, completed: !todo.completed } : todo
       ));
     };
-  
+
     return (
       <div>
         <h1>Todo List</h1>
@@ -83,7 +85,7 @@ export const mockMessages: ClaudeMessage[] = [
       </div>
     );
   };
-  
+
   export default TodoList;`,
 		}),
 	},
@@ -116,6 +118,8 @@ export const mockMessages: ClaudeMessage[] = [
 			},
 			tokensIn: 8,
 			tokensOut: 180,
+			cacheReadTokens: 25,
+			cacheWriteTokens: 50,
 			cost: 0.0003,
 		}),
 	},
@@ -126,31 +130,31 @@ export const mockMessages: ClaudeMessage[] = [
 		text: JSON.stringify({
 			tool: "editedExistingFile",
 			path: "/src/components/TodoList.tsx",
-			diff: `+ 
-+ 
+			diff: `+
++
   import React, { useState } from "react"
-  
+
   interface Todo {
   	id: number
   	text: string
   	completed: boolean
   }
-  
+
   const TodoList: React.FC = () => {
   	const [todos, setTodos] = useState<Todo[]>([])
   	const [inputValue, setInputValue] = useState("")
-  
+
   	const addTodo = () => {
   		if (inputValue.trim() !== "") {
   			setTodos([...todos, { id: Date.now(), text: inputValue, completed: false }])
   			setInputValue("")
   		}
   	}
-  
+
   	const toggleTodo = (id: number) => {
   		setTodos(todos.map((todo) => (todo.id === id ? { ...todo, completed: !todo.completed } : todo)))
   	}
-  
+
   	return (
   		<div>
   			<h1>Todo List</h1>
@@ -160,7 +164,7 @@ export const mockMessages: ClaudeMessage[] = [
   				onChange={(e) => setInputValue(e.target.value)}
   				placeholder="Add a new todo"
   			/>
-  
+
 - 			<button onClick={addTodo}>Add</button>
 - 			<ul>
 - 				{todos.map((todo) => (
@@ -173,16 +177,16 @@ export const mockMessages: ClaudeMessage[] = [
 - 				))}
 - 			</ul>
 - 		</div>
-- 
-+ 			
-+ 
+-
++
++
   	)
   }
-  
+
   export default TodoList
-  
-+ 
-+ 		
+
++
++
 `,
 		}),
 	},
@@ -233,6 +237,8 @@ export const mockMessages: ClaudeMessage[] = [
 			},
 			tokensIn: 7,
 			tokensOut: 220,
+			cacheReadTokens: 25,
+			cacheWriteTokens: 50,
 			cost: 0.0002,
 		}),
 	},
@@ -246,21 +252,21 @@ export const mockMessages: ClaudeMessage[] = [
 			content: `const express = require('express');
   const app = express();
   const port = 3000;
-  
+
   app.use(express.json());
-  
+
   let items = [];
-  
+
   app.get('/items', (req, res) => {
     res.json(items);
   });
-  
+
   app.post('/items', (req, res) => {
     const newItem = req.body;
     items.push(newItem);
     res.status(201).json(newItem);
   });
-  
+
   app.get('/items/:id', (req, res) => {
     const item = items.find(i => i.id === parseInt(req.params.id));
     if (item) {
@@ -269,7 +275,7 @@ export const mockMessages: ClaudeMessage[] = [
       res.status(404).send('Item not found');
     }
   });
-  
+
   app.listen(port, () => {
     console.log(\`API running on http://localhost:\${port}\`);
   });`,
@@ -323,7 +329,7 @@ export const mockMessages: ClaudeMessage[] = [
    const app = express();
   -const port = 3000;
   +const port = process.env.PORT || 3001;
-   
+
    app.use(express.json());
    `,
 		}),

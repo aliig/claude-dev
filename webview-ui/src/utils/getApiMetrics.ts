@@ -4,6 +4,8 @@ interface ApiMetrics {
 	totalTokensIn: number
 	totalTokensOut: number
 	totalCost: number
+	totalCacheReadTokens: number
+	totalCacheWriteTokens: number
 }
 
 /**
@@ -27,6 +29,8 @@ export function getApiMetrics(messages: ClaudeMessage[]): ApiMetrics {
 	const result: ApiMetrics = {
 		totalTokensIn: 0,
 		totalTokensOut: 0,
+		totalCacheReadTokens: 0,
+		totalCacheWriteTokens: 0,
 		totalCost: 0,
 	}
 
@@ -34,7 +38,7 @@ export function getApiMetrics(messages: ClaudeMessage[]): ApiMetrics {
 		if (message.type === "say" && message.say === "api_req_started" && message.text) {
 			try {
 				const parsedData = JSON.parse(message.text)
-				const { tokensIn, tokensOut, cost } = parsedData
+				const { tokensIn, tokensOut, cacheReadTokens, cacheWriteTokens, cost } = parsedData
 
 				if (typeof tokensIn === "number") {
 					result.totalTokensIn += tokensIn
@@ -42,9 +46,16 @@ export function getApiMetrics(messages: ClaudeMessage[]): ApiMetrics {
 				if (typeof tokensOut === "number") {
 					result.totalTokensOut += tokensOut
 				}
+				if (typeof cacheReadTokens === "number") {
+					result.totalCacheReadTokens += cacheReadTokens
+				}
+				if (typeof cacheWriteTokens === "number") {
+					result.totalCacheWriteTokens += cacheWriteTokens
+				}
 				if (typeof cost === "number") {
 					result.totalCost += cost
 				}
+
 			} catch (error) {
 				console.error("Error parsing JSON:", error)
 			}

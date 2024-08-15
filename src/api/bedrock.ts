@@ -1,4 +1,5 @@
 import AnthropicBedrock from "@anthropic-ai/bedrock-sdk"
+import { ExtendedUsage } from "../shared/Beta"
 import { Anthropic } from "@anthropic-ai/sdk"
 import { ApiHandler, withoutImageData } from "."
 import { ApiHandlerOptions, bedrockDefaultModelId, BedrockModelId, bedrockModels, ModelInfo } from "../shared/api"
@@ -26,7 +27,7 @@ export class AwsBedrockHandler implements ApiHandler {
 		systemPrompt: string,
 		messages: Anthropic.Messages.MessageParam[],
 		tools: Anthropic.Messages.Tool[]
-	): Promise<Anthropic.Messages.Message> {
+	): Promise<Anthropic.Messages.Message & { usage: ExtendedUsage }> {
 		return await this.client.messages.create({
 			model: this.getModel().id,
 			max_tokens: this.getModel().info.maxTokens,

@@ -1,4 +1,5 @@
 import { Anthropic } from "@anthropic-ai/sdk"
+import { ExtendedUsage } from "../shared/Beta"
 import { ApiHandler, withoutImageData } from "."
 import { anthropicDefaultModelId, AnthropicModelId, anthropicModels, ApiHandlerOptions, ModelInfo } from "../shared/api"
 
@@ -15,8 +16,8 @@ export class AnthropicHandler implements ApiHandler {
 		systemPrompt: string,
 		messages: Anthropic.Messages.MessageParam[],
 		tools: Anthropic.Messages.Tool[]
-	): Promise<Anthropic.Messages.Message> {
-		return await this.client.messages.create(
+	): Promise<Anthropic.Messages.Message & { usage: ExtendedUsage }> {
+		return await this.client.beta.promptCaching.messages.create(
 			{
 				model: this.getModel().id,
 				max_tokens: this.getModel().info.maxTokens,
@@ -25,13 +26,13 @@ export class AnthropicHandler implements ApiHandler {
 				tools,
 				tool_choice: { type: "auto" },
 			},
-			// https://x.com/alexalbert__/status/1812921642143900036
-			// https://github.com/anthropics/anthropic-sdk-typescript?tab=readme-ov-file#default-headers
-			this.getModel().id === "claude-3-5-sonnet-20240620"
-				? {
-						headers: { "anthropic-beta": "max-tokens-3-5-sonnet-2024-07-15" },
-				  }
-				: undefined
+			{
+				headers: {
+					...(this.getModel().id === "claude-3-5-sonnet-20240620"
+						? { "anthropic-beta": "max-tokens-3-5-sonnet-2024-07-15" }
+						: {}),
+				},
+			}
 		)
 	}
 

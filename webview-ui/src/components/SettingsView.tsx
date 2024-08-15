@@ -1,4 +1,4 @@
-import { VSCodeButton, VSCodeLink, VSCodeTextArea, VSCodeTextField } from "@vscode/webview-ui-toolkit/react"
+import { VSCodeButton, VSCodeRadio, VSCodeLink, VSCodeTextArea, VSCodeTextField } from "@vscode/webview-ui-toolkit/react"
 import React, { useEffect, useState } from "react"
 import { ApiConfiguration } from "../../../src/shared/api"
 import { validateApiConfiguration, validateMaxRequestsPerTask } from "../utils/validate"
@@ -29,20 +29,33 @@ const SettingsView = ({
 	const [apiErrorMessage, setApiErrorMessage] = useState<string | undefined>(undefined)
 	const [maxRequestsErrorMessage, setMaxRequestsErrorMessage] = useState<string | undefined>(undefined)
 
-	const handleSubmit = () => {
-		const apiValidationResult = validateApiConfiguration(apiConfiguration)
-		const maxRequestsValidationResult = validateMaxRequestsPerTask(maxRequestsPerTask)
+	const [usePromptCaching, setUsePromptCaching] = useState<boolean>(apiConfiguration?.usePromptCaching ?? true);
 
-		setApiErrorMessage(apiValidationResult)
-		setMaxRequestsErrorMessage(maxRequestsValidationResult)
+	const handleSubmit = () => {
+		const apiValidationResult = validateApiConfiguration(apiConfiguration);
+		const maxRequestsValidationResult = validateMaxRequestsPerTask(maxRequestsPerTask);
+
+		setApiErrorMessage(apiValidationResult);
+		setMaxRequestsErrorMessage(maxRequestsValidationResult);
 
 		if (!apiValidationResult && !maxRequestsValidationResult) {
-			vscode.postMessage({ type: "apiConfiguration", apiConfiguration })
-			vscode.postMessage({ type: "maxRequestsPerTask", text: maxRequestsPerTask })
-			vscode.postMessage({ type: "customInstructions", text: customInstructions })
-			onDone()
+			vscode.postMessage({
+				type: "apiConfiguration",
+				apiConfiguration: { ...apiConfiguration, usePromptCaching }
+			});
+			vscode.postMessage({ type: "maxRequestsPerTask", text: maxRequestsPerTask });
+			vscode.postMessage({ type: "customInstructions", text: customInstructions });
+			onDone();
 		}
-	}
+	};
+
+	const handleUsePromptCachingChange = (e: Event) => {
+		const target = e.target as HTMLInputElement;
+		setApiConfiguration((prevConfig) => ({
+			...prevConfig,
+			usePromptCaching: target.checked,
+		}));
+	};
 
 	useEffect(() => {
 		setApiErrorMessage(undefined)
@@ -55,7 +68,7 @@ const SettingsView = ({
 	// validate as soon as the component is mounted
 	/*
 	useEffect will use stale values of variables if they are not included in the dependency array. so trying to use useEffect with a dependency array of only one value for example will use any other variables' old values. In most cases you don't want this, and should opt to use react-use hooks.
-	
+
 	useEffect(() => {
 		// uses someVar and anotherVar
 	// eslint-disable-next-line react-hooks/exhaustive-deps
@@ -156,6 +169,33 @@ const SettingsView = ({
 						</p>
 					)}
 				</div>
+
+				<div style={{ marginBottom: 15 }}>
+					<VSCodeRadio
+						checked={usePromptCaching}
+						onChange={(e: any) => setUsePromptCaching(e.target?.checked)}
+					>
+						Use Prompt Caching
+					</VSCodeRadio>
+
+					{/*
+					<VSCodeCheckbox
+						checked={usePromptCaching}
+						onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUsePromptCaching(e.target.checked)}
+					>
+						<span style={{ fontWeight: "500" }}>Enable Prompt Caching</span>
+					</VSCodeCheckbox>
+ 					*/}
+					<p
+						style={{
+							fontSize: "12px",
+							marginTop: "5px",
+							color: "var(--vscode-descriptionForeground)",
+						}}>
+						When enabled, prompt caching can reduce latency and API costs by reusing parts of previous conversations.
+					</p>
+				</div>
+
 			</div>
 
 			<div

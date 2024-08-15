@@ -11,6 +11,7 @@ import { serializeError } from "serialize-error"
 import treeKill from "tree-kill"
 import * as vscode from "vscode"
 import { ApiHandler, buildApiHandler } from "./api"
+import { ExtendedUsage } from "./shared/Beta"
 import { listFiles, parseSourceCodeForDefinitionsTopLevel } from "./parse-source-code"
 import { ClaudeDevProvider } from "./providers/ClaudeDevProvider"
 import { ApiConfiguration } from "./shared/api"
@@ -21,11 +22,19 @@ import { Tool, ToolName } from "./shared/Tool"
 import { ClaudeAskResponse } from "./shared/WebviewMessage"
 import delay from "delay"
 
+function isPromptCachingResponse(
+	response: Anthropic.Messages.Message | (Anthropic.Messages.Message & { usage: ExtendedUsage })
+): response is Anthropic.Messages.Message & { usage: ExtendedUsage } {
+	return 'usage' in response &&
+		'cache_creation_input_tokens' in response.usage &&
+		'cache_read_input_tokens' in response.usage;
+}
+
 const SYSTEM_PROMPT =
 	() => `You are Claude Dev, a highly skilled software developer with extensive knowledge in many programming languages, frameworks, design patterns, and best practices.
 
 ====
- 
+
 CAPABILITIES
 
 - You can read and analyze code in various programming languages, and can write clean, efficient, and well-documented code.
@@ -53,7 +62,7 @@ RULES
 - Do not ask for more information than necessary. Use the tools provided to accomplish the user's request efficiently and effectively. When you've completed your task, you must use the attempt_completion tool to present the result to the user. The user may provide feedback, which you can use to make improvements and try again.
 - You are only allowed to ask the user questions using the ask_followup_question tool. Use this tool only when you need additional details to complete a task, and be sure to use a clear and concise question that will help you move forward with the task. However if you can use the available tools to avoid having to ask the user questions, you should do so. For example if you need to know the name of a file, you can use the list files tool to get the name yourself. If the user refers to something vague, you can use the list_files_recursive tool to get a better understanding of the project to see if that helps you clear up any confusion.
 - Your goal is to try to accomplish the user's task, NOT engage in a back and forth conversation.
-- NEVER end completion_attempt with a question or request to engage in further conversation! Formulate the end of your result in a way that is final and does not require further input from the user. 
+- NEVER end completion_attempt with a question or request to engage in further conversation! Formulate the end of your result in a way that is final and does not require further input from the user.
 - NEVER start your responses with affirmations like "Certainly", "Okay", "Sure", "Great", etc. You should NOT be conversational in your responses, but rather direct and to the point.
 - Feel free to use markdown as much as you'd like in your responses. When using code blocks, always include a language specifier.
 - When presented with images, utilize your vision capabilities to thoroughly examine them and extract meaningful information. Incorporate these insights into your thought process as you accomplish the user's task.
@@ -65,7 +74,7 @@ OBJECTIVE
 You accomplish a given task iteratively, breaking it down into clear steps and working through them methodically.
 
 1. Analyze the user's task and set clear, achievable goals to accomplish it. Prioritize these goals in a logical order.
-2. Work through these goals sequentially, utilizing available tools as necessary. Each goal should correspond to a distinct step in your problem-solving process. It is okay for certain steps to take multiple iterations, i.e. if you need to create many files but are limited by your max output limitations, it's okay to create a few files at a time as each subsequent iteration will keep you informed on the work completed and what's remaining. 
+2. Work through these goals sequentially, utilizing available tools as necessary. Each goal should correspond to a distinct step in your problem-solving process. It is okay for certain steps to take multiple iterations, i.e. if you need to create many files but are limited by your max output limitations, it's okay to create a few files at a time as each subsequent iteration will keep you informed on the work completed and what's remaining.
 3. Remember, you have extensive capabilities with access to a wide range of tools that can be used in powerful and clever ways as necessary to accomplish each goal. Before calling a tool, do some analysis within <thinking></thinking> tags. First, think about which of the provided tools is the relevant tool to answer the user's request. Second, go through each of the required parameters of the relevant tool and determine if the user has directly provided or given enough information to infer a value. When deciding if the parameter can be inferred, carefully consider all the context to see if it supports a specific value. If all of the required parameters are present or can be reasonably inferred, close the thinking tag and proceed with the tool call. BUT, if one of the values for a required parameter is missing, DO NOT invoke the function (not even with fillers for the missing params) and instead, ask the user to provide the missing parameters using the ask_followup_question tool. DO NOT ask for more information on optional parameters if it is not provided.
 4. Once you've completed the user's task, you must use the attempt_completion tool to present the result of the task to the user. You may also provide a CLI command to showcase the result of your task; this can be particularly useful for web development tasks, where you can run e.g. \`open index.html\` to show the website you've built.
 5. The user may provide feedback, which you can use to make improvements and try again. But DO NOT continue in pointless back and forth conversations, i.e. don't end your responses with questions or offers for further assistance.
@@ -78,19 +87,17 @@ Operating System: ${osName()}
 Default Shell: ${defaultShell}
 Home Directory: ${os.homedir()}
 Current Working Directory: ${cwd}
-VSCode Visible Files: ${
-		vscode.window.visibleTextEditors
+VSCode Visible Files: ${vscode.window.visibleTextEditors
 			?.map((editor) => editor.document?.uri?.fsPath)
 			.filter(Boolean)
 			.join(", ") || "(No files open)"
-	}
-VSCode Opened Tabs: ${
-		vscode.window.tabGroups.all
+		}
+VSCode Opened Tabs: ${vscode.window.tabGroups.all
 			.flatMap((group) => group.tabs)
 			.map((tab) => (tab.input as vscode.TabInputText)?.uri?.fsPath)
 			.filter(Boolean)
 			.join(", ") || "(No tabs open)"
-	}
+		}
 `
 
 const cwd =
@@ -320,14 +327,14 @@ export class ClaudeDev {
 	private formatImagesIntoBlocks(images?: string[]): Anthropic.ImageBlockParam[] {
 		return images
 			? images.map((dataUrl) => {
-					// data:image/png;base64,base64string
-					const [rest, base64] = dataUrl.split(",")
-					const mimeType = rest.split(":")[1].split(";")[0]
-					return {
-						type: "image",
-						source: { type: "base64", media_type: mimeType, data: base64 },
-					} as Anthropic.ImageBlockParam
-			  })
+				// data:image/png;base64,base64string
+				const [rest, base64] = dataUrl.split(",")
+				const mimeType = rest.split(":")[1].split(";")[0]
+				return {
+					type: "image",
+					source: { type: "base64", media_type: mimeType, data: base64 },
+				} as Anthropic.ImageBlockParam
+			})
 			: []
 	}
 
@@ -359,14 +366,18 @@ export class ClaudeDev {
 
 		let totalInputTokens = 0
 		let totalOutputTokens = 0
+		let totalCacheWriteTokens = 0 // not used for now
+		let totalCacheReadTokens = 0 // not used for now
 
 		while (!this.abort) {
-			const { didEndLoop, inputTokens, outputTokens } = await this.recursivelyMakeClaudeRequests([
+			const { didEndLoop, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens } = await this.recursivelyMakeClaudeRequests([
 				textBlock,
 				...imageBlocks,
 			])
 			totalInputTokens += inputTokens
 			totalOutputTokens += outputTokens
+			totalCacheReadTokens += cacheReadTokens
+			totalCacheWriteTokens += cacheWriteTokens
 
 			//  The way this agentic loop works is that claude will be given a task that he then calls tools to complete. unless there's an attempt_completion call, we keep responding back to him with his tool's responses until he either attempt_completion or does not use anymore tools. If he does not use anymore tools, we ask him to consider if he's completed the task and then call attempt_completion, otherwise proceed with completing the task.
 			// There is a MAX_REQUESTS_PER_TASK limit to prevent infinite requests, but Claude is prompted to finish the task as efficiently as he can.
@@ -421,11 +432,23 @@ export class ClaudeDev {
 		}
 	}
 
-	calculateApiCost(inputTokens: number, outputTokens: number): number {
-		const inputCost = (this.api.getModel().info.inputPrice / 1_000_000) * inputTokens
-		const outputCost = (this.api.getModel().info.outputPrice / 1_000_000) * outputTokens
-		const totalCost = inputCost + outputCost
-		return totalCost
+	calculateApiCost(inputTokens: number, outputTokens: number, cacheReadTokens: number, cacheWriteTokens: number): number {
+		const model = this.api.getModel();
+		const inputCost = model.info.inputPrice * inputTokens;
+		const outputCost = model.info.outputPrice * outputTokens;
+		let cacheWriteCost = 0;
+		let cacheReadCost = 0;
+
+		if (model.info.cacheWritePrice !== undefined) {
+			cacheWriteCost = model.info.cacheWritePrice * cacheWriteTokens;
+		}
+
+		if (model.info.cacheReadPrice !== undefined) {
+			cacheReadCost = model.info.cacheReadPrice * cacheReadTokens;
+		}
+
+		const totalCost = (inputCost + outputCost + cacheWriteCost + cacheReadCost) / 1_000_000;
+		return totalCost;
 	}
 
 	async writeToFile(relPath?: string, newContent?: string, isLast: boolean = true): Promise<ToolResponse> {
@@ -640,8 +663,7 @@ export class ClaudeDev {
 			const errorString = `Error listing files and directories: ${JSON.stringify(serializeError(error))}`
 			this.say(
 				"error",
-				`Error listing files and directories:\n${
-					error.message ?? JSON.stringify(serializeError(error), null, 2)
+				`Error listing files and directories:\n${error.message ?? JSON.stringify(serializeError(error), null, 2)
 				}`
 			)
 			return errorString
@@ -772,8 +794,7 @@ export class ClaudeDev {
 			const errorString = `Error parsing source code definitions: ${JSON.stringify(serializeError(error))}`
 			this.say(
 				"error",
-				`Error parsing source code definitions:\n${
-					error.message ?? JSON.stringify(serializeError(error), null, 2)
+				`Error parsing source code definitions:\n${error.message ?? JSON.stringify(serializeError(error), null, 2)
 				}`
 			)
 			return errorString
@@ -928,7 +949,7 @@ export class ClaudeDev {
 		)
 	}
 
-	async attemptApiRequest(): Promise<Anthropic.Messages.Message> {
+	async attemptApiRequest(): Promise<Anthropic.Messages.Message | (Anthropic.Messages.Message & { usage: ExtendedUsage })> {
 		try {
 			let systemPrompt = SYSTEM_PROMPT()
 			if (this.customInstructions && this.customInstructions.trim()) {
@@ -942,7 +963,27 @@ The following additional instructions are provided by the user. They should be f
 ${this.customInstructions.trim()}
 `
 			}
-			return await this.api.createMessage(systemPrompt, this.apiConversationHistory, tools)
+
+			// API request with prompt caching support
+			const response = await this.api.createMessage(systemPrompt, this.apiConversationHistory, tools);
+
+			const usage = response.usage as ExtendedUsage;
+
+			if (isPromptCachingResponse(response)) {
+				// Handle prompt caching: Extract and log cached token usage if necessary
+				const { cache_creation_input_tokens, cache_read_input_tokens } = usage;
+				console.log(`Prompt caching - created tokens: ${cache_creation_input_tokens}, read tokens: ${cache_read_input_tokens}`);
+			} else {
+				// Handle non-cached responses by adding necessary fields
+				usage.cache_creation_input_tokens = null;
+				usage.cache_read_input_tokens = null;
+			}
+
+			return {
+				...response,
+				usage,
+			};
+
 		} catch (error) {
 			const { response } = await this.ask(
 				"api_req_failed",
@@ -988,7 +1029,7 @@ ${this.customInstructions.trim()}
 						},
 					],
 				})
-				return { didEndLoop: true, inputTokens: 0, outputTokens: 0 }
+				return { didEndLoop: true, inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 }
 			}
 		}
 
@@ -1000,22 +1041,34 @@ ${this.customInstructions.trim()}
 			})
 		)
 		try {
-			const response = await this.attemptApiRequest()
-			this.requestCount++
+			const response = await this.attemptApiRequest();
+			this.requestCount++;
 
-			let assistantResponses: Anthropic.Messages.ContentBlock[] = []
-			let inputTokens = response.usage.input_tokens
-			let outputTokens = response.usage.output_tokens
+			let inputTokens = response.usage.input_tokens;
+			let outputTokens = response.usage.output_tokens;
+
+			// Handle prompt caching if available
+			const usage = response.usage as ExtendedUsage;
+			let cacheReadTokens = usage.cache_read_input_tokens || 0;
+			let cacheWriteTokens = usage.cache_creation_input_tokens || 0;
+
+
 			await this.say(
 				"api_req_finished",
 				JSON.stringify({
 					tokensIn: inputTokens,
 					tokensOut: outputTokens,
-					cost: this.calculateApiCost(inputTokens, outputTokens),
+					cacheTokensRead: cacheReadTokens,
+					cacheTokensWrite: cacheWriteTokens,
+					cost: this.calculateApiCost(inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens),
 				})
 			)
 
 			// A response always returns text content blocks (it's just that before we were iterating over the completion_attempt response before we could append text response, resulting in bug)
+
+			let assistantResponses: Anthropic.Messages.ContentBlock[] = [];
+
+			// Process assistant responses and tool use blocks
 			for (const contentBlock of response.content) {
 				if (contentBlock.type === "text") {
 					assistantResponses.push(contentBlock)
@@ -1106,17 +1159,21 @@ ${this.customInstructions.trim()}
 						didEndLoop: recDidEndLoop,
 						inputTokens: recInputTokens,
 						outputTokens: recOutputTokens,
+						cacheReadTokens: recCacheReadTokens,
+						cacheWriteTokens: recCacheWriteTokens,
 					} = await this.recursivelyMakeClaudeRequests(toolResults)
 					didEndLoop = recDidEndLoop
 					inputTokens += recInputTokens
 					outputTokens += recOutputTokens
+					cacheReadTokens += recCacheReadTokens
+					cacheWriteTokens += recCacheWriteTokens
 				}
 			}
 
-			return { didEndLoop, inputTokens, outputTokens }
+			return { didEndLoop, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens }
 		} catch (error) {
 			// this should never happen since the only thing that can throw an error is the attemptApiRequest, which is wrapped in a try catch that sends an ask where if noButtonTapped, will clear current task and destroy this instance. However to avoid unhandled promise rejection, we will end this loop which will end execution of this instance (see startTask)
-			return { didEndLoop: true, inputTokens: 0, outputTokens: 0 }
+			return { didEndLoop: true, inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 }
 		}
 	}
 }

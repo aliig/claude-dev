@@ -9,19 +9,21 @@ interface TaskHeaderProps {
 	task: ClaudeMessage
 	tokensIn: number
 	tokensOut: number
+	cacheReadTokens: number
+	cacheWriteTokens: number
 	totalCost: number
 	onClose: () => void
 	isHidden: boolean
 }
 
-const TaskHeader: React.FC<TaskHeaderProps> = ({ task, tokensIn, tokensOut, totalCost, onClose, isHidden }) => {
+const TaskHeader: React.FC<TaskHeaderProps> = ({ task, tokensIn, tokensOut, cacheReadTokens, cacheWriteTokens, totalCost, onClose, isHidden }) => {
 	const [isExpanded, setIsExpanded] = useState(false)
 	const [showSeeMore, setShowSeeMore] = useState(false)
 	const textContainerRef = useRef<HTMLDivElement>(null)
 	const textRef = useRef<HTMLDivElement>(null)
 
 	/*
-	When dealing with event listeners in React components that depend on state variables, we face a challenge. We want our listener to always use the most up-to-date version of a callback function that relies on current state, but we don't want to constantly add and remove event listeners as that function updates. This scenario often arises with resize listeners or other window events. Simply adding the listener in a useEffect with an empty dependency array risks using stale state, while including the callback in the dependencies can lead to unnecessary re-registrations of the listener. There are react hook libraries that provide a elegant solution to this problem by utilizing the useRef hook to maintain a reference to the latest callback function without triggering re-renders or effect re-runs. This approach ensures that our event listener always has access to the most current state while minimizing performance overhead and potential memory leaks from multiple listener registrations. 
+	When dealing with event listeners in React components that depend on state variables, we face a challenge. We want our listener to always use the most up-to-date version of a callback function that relies on current state, but we don't want to constantly add and remove event listeners as that function updates. This scenario often arises with resize listeners or other window events. Simply adding the listener in a useEffect with an empty dependency array risks using stale state, while including the callback in the dependencies can lead to unnecessary re-registrations of the listener. There are react hook libraries that provide a elegant solution to this problem by utilizing the useRef hook to maintain a reference to the latest callback function without triggering re-renders or effect re-runs. This approach ensures that our event listener always has access to the most current state while minimizing performance overhead and potential memory leaks from multiple listener registrations.
 	Sources
 	- https://usehooks-ts.com/react-hook/use-event-listener
 	- https://streamich.github.io/react-use/?path=/story/sensors-useevent--docs
@@ -29,7 +31,7 @@ const TaskHeader: React.FC<TaskHeaderProps> = ({ task, tokensIn, tokensOut, tota
 	- https://stackoverflow.com/questions/55565444/how-to-register-event-with-useeffect-hooks
 
 	Before:
-	
+
 	const updateMaxHeight = useCallback(() => {
 		if (isExpanded && textContainerRef.current) {
 			const maxHeight = window.innerHeight * (3 / 5)
@@ -192,6 +194,23 @@ const TaskHeader: React.FC<TaskHeaderProps> = ({ task, tokensIn, tokensOut, tota
 								style={{ fontSize: "12px", fontWeight: "bold", marginBottom: "-2px" }}
 							/>
 							{tokensOut.toLocaleString()}
+						</span>
+					</div>
+					<div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+						<span style={{ fontWeight: "bold" }}>Cached:</span>
+						<span style={{ display: "flex", alignItems: "center", gap: "3px" }}>
+							<i
+								className="codicon codicon-arrow-up"
+								style={{ fontSize: "12px", fontWeight: "bold", marginBottom: "-1.5px" }}
+							/>
+							{cacheReadTokens.toLocaleString()}
+						</span>
+						<span style={{ display: "flex", alignItems: "center", gap: "3px" }}>
+							<i
+								className="codicon codicon-arrow-down"
+								style={{ fontSize: "12px", fontWeight: "bold", marginBottom: "-2px" }}
+							/>
+							{cacheWriteTokens.toLocaleString()}
 						</span>
 					</div>
 					<div

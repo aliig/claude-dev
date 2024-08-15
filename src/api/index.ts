@@ -1,4 +1,5 @@
 import { Anthropic } from "@anthropic-ai/sdk"
+import { ExtendedUsage } from "../shared/Beta"
 import { ApiConfiguration, ApiModelId, ModelInfo } from "../shared/api"
 import { AnthropicHandler } from "./anthropic"
 import { AwsBedrockHandler } from "./bedrock"
@@ -9,7 +10,7 @@ export interface ApiHandler {
 		systemPrompt: string,
 		messages: Anthropic.Messages.MessageParam[],
 		tools: Anthropic.Messages.Tool[]
-	): Promise<Anthropic.Messages.Message>
+	): Promise<Anthropic.Messages.Message | (Anthropic.Messages.Message & { usage: ExtendedUsage })>
 
 	createUserReadableRequest(
 		userContent: Array<
